@@ -1,85 +1,55 @@
-﻿using System;
-using System.IO;
-using System.Xml.Linq;
-using System.Linq;
+﻿using System.Xml.Linq;
 
-class Program
+static void ProcessResxFile(string resxFile)
 {
-    static void Main()
+    try
     {
-        try
+        Console.WriteLine($"Processing file: {resxFile}");
+
+        XDocument resxDocument = XDocument.Load(resxFile);
+        string xamlFileName = Path.ChangeExtension(resxFile, "_converted.xaml");
+
+        XElement rootElement = new XElement("ResourceDictionary",
+            new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
+            new XAttribute("xmlns", "clr-namespace:System;assembly=mscorlib"));
+
+        foreach (XElement dataElement in resxDocument.Descendants("data"))
         {
-            string directory = Directory.GetParent(Directory.GetCurrentDirectory()).FullName;
-            Console.WriteLine($"Processing .resx files in the directory: {directory}");
+            string nameAttribute = dataElement.Attribute("name")?.Value;
+            string valueElement = dataElement.Element("value")?.Value;
 
-            var resxFiles = Directory.EnumerateFiles(directory, "*.resx", SearchOption.AllDirectories);
-
-            if (!resxFiles.Any())
+            if (!string.IsNullOrEmpty(nameAttribute) && !string.IsNullOrEmpty(valueElement))
             {
-                Console.WriteLine($"No .resx files found in the directory: {directory}");
-                return;
-            }
+                Console.WriteLine($"Processing key: {nameAttribute}");
 
-            foreach (string resxFile in resxFiles)
+                string sanitizedKey = SanitizeKey(nameAttribute);
+                XElement xamlElement = new XElement("sys:String",
+                    new XAttribute(XNamespace.Xmlns + "sys", "clr-namespace:System;assembly=mscorlib"),
+                    new XAttribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"), sanitizedKey),
+                    valueElement);
+                rootElement.Add(xamlElement);
+            }
+            else
             {
-                ProcessResxFile(resxFile);
+                Console.WriteLine($"Skipping invalid resource: {nameAttribute}");
             }
+        }
 
-            Console.WriteLine("Conversion complete.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-        }
+        Directory.CreateDirectory(Path.GetDirectoryName(xamlFileName));
+
+        XDocument xamlDocument = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), rootElement);
+        xamlDocument.Save(xamlFileName);
+
+        Console.WriteLine($"Converted {resxFile} to {xamlFileName}");
     }
-
-    static void ProcessResxFile(string resxFile)
+    catch (Exception ex)
     {
-        try
-        {
-            Console.WriteLine($"Processing file: {resxFile}");
-
-            XDocument resxDocument = XDocument.Load(resxFile);
-            string xamlFileName = Path.ChangeExtension(resxFile, "_converted.xaml");
-
-            XElement rootElement = new XElement("ResourceDictionary",
-                new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"));
-
-            foreach (XElement dataElement in resxDocument.Descendants("data"))
-            {
-                string nameAttribute = dataElement.Attribute("name")?.Value;
-                string valueElement = dataElement.Element("value")?.Value;
-
-                if (!string.IsNullOrEmpty(nameAttribute) && !string.IsNullOrEmpty(valueElement))
-                {
-                    Console.WriteLine($"Processing key: {nameAttribute}");
-
-                    XElement xamlElement = new XElement("System:String",
-                        new XAttribute("x:Key", SanitizeKey(nameAttribute)),
-                        valueElement);
-                    rootElement.Add(xamlElement);
-                }
-                else
-                {
-                    Console.WriteLine($"Skipping invalid resource: {nameAttribute}");
-                }
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(xamlFileName));
-
-            XDocument xamlDocument = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), rootElement);
-            xamlDocument.Save(xamlFileName);
-
-            Console.WriteLine($"Converted {resxFile} to {xamlFileName}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error processing {resxFile}: {ex.Message}");
-        }
+        Console.WriteLine($"Error processing {resxFile}: {ex.Message}");
     }
+}
 
-    static string SanitizeKey(string key)
-    {
-        return new string(key.Select(ch => char.IsLetterOrDigit(ch) || ch == '_' ? ch : '_').ToArray());
-    }
+static string SanitizeKey(string key)
+{
+    // Replace invalid characters with underscores
+    return string.Join("_", key.Split(Path.GetInvalidFileNameChars()));
 }
