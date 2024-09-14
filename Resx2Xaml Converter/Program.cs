@@ -76,6 +76,10 @@ class Program
         {
             name = name.Replace(invalidChar, '_');
         }
+
+        // Additionally, replace any ':' characters since they are invalid in names and paths
+        name = name.Replace(':', '_');
+
         return name;
     }
 }
