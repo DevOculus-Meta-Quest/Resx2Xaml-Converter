@@ -72,16 +72,20 @@ class Program
     static string SanitizeFileName(string name)
     {
         // Replace invalid characters (like ':') with underscores for both file names and keys
-        foreach (char invalidChar in Path.GetInvalidFileNameChars())
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+
+        // Add custom characters like ':' which need to be removed even if they are valid in some cases
+        char[] customInvalidChars = { ':', '/', '\\' };
+
+        foreach (char invalidChar in invalidChars)
         {
             name = name.Replace(invalidChar, '_');
         }
 
-        // Additionally, replace any ':' characters and other problematic characters since they are invalid in names and paths
-        name = name.Replace(':', '_')
-                   .Replace(' ', '_')  // replace spaces with underscores to avoid issues
-                   .Replace('/', '_')  // replace slashes with underscores
-                   .Replace('\\', '_');  // replace backslashes with underscores
+        foreach (char customChar in customInvalidChars)
+        {
+            name = name.Replace(customChar, '_');
+        }
 
         return name;
     }
