@@ -51,9 +51,12 @@ class Program
             XDocument resxDocument = XDocument.Load(resxFile);
             string xamlFileName = Path.ChangeExtension(resxFile, "_converted.xaml");
 
+            XNamespace xmlns = "http://schemas.microsoft.com/winfx/2006/xaml";
+            XNamespace sysNs = "clr-namespace:System;assembly=mscorlib";
+
             XElement rootElement = new XElement("ResourceDictionary",
-                new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
-                new XAttribute("xmlns", "clr-namespace:System;assembly=mscorlib"));
+                new XAttribute(XNamespace.Xmlns + "x", xmlns),
+                new XAttribute(XNamespace.Xmlns + "sys", sysNs));
 
             foreach (XElement dataElement in resxDocument.Descendants("data"))
             {
@@ -65,9 +68,8 @@ class Program
                     Console.WriteLine($"Processing key: {nameAttribute}");
 
                     string sanitizedKey = SanitizeKey(nameAttribute);
-                    XElement xamlElement = new XElement("sys:String",
-                        new XAttribute(XNamespace.Xmlns + "sys", "clr-namespace:System;assembly=mscorlib"),
-                        new XAttribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"), sanitizedKey),
+                    XElement xamlElement = new XElement(sysNs + "String",
+                        new XAttribute(xmlns + "Key", sanitizedKey),
                         valueElement);
                     rootElement.Add(xamlElement);
                 }
@@ -93,6 +95,8 @@ class Program
     static string SanitizeKey(string key)
     {
         // Replace invalid characters with underscores
-        return string.Join("_", key.Split(Path.GetInvalidFileNameChars()));
+        return string.Join("_", key.Split(Path.GetInvalidFileNameChars()))
+            .Replace(".", "_")  // Replace dots with underscores
+            .Replace("$", "");  // Remove dollar signs
     }
 }
